@@ -48,6 +48,24 @@
 	[super fireEvent:type withObject:obj withSource:source propagate:propagate];
 }
 
+-(void)setRowCount:(id)args
+{
+    TiUIDashboardView *v = (TiUIDashboardView*)[self view];
+    LauncherView *launcher = [v launcher];
+    ENSURE_SINGLE_ARG(args,NSObject);
+    NSUInteger count = [TiUtils intValue:args];
+    [launcher setRowCount:count];
+}
+
+-(void)setColumnCount:(id)args
+{
+    TiUIDashboardView *v = (TiUIDashboardView*)[self view];
+    LauncherView *launcher = [v launcher];
+    ENSURE_SINGLE_ARG(args,NSObject);
+    NSUInteger count = [TiUtils intValue:args];
+    [launcher setColumnCount:count];
+}
+
 -(void)setData:(id)data
 {
     for (TiViewProxy* proxy in data) {
