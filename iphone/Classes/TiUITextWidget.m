@@ -110,6 +110,7 @@
 -(BOOL)resignFirstResponder
 {
 	if (![textWidgetView isFirstResponder])
+//		|| ![(TiUITextWidgetProxy *)[self proxy] suppressFocusEvents])
 	{
 		return NO;
 	}
