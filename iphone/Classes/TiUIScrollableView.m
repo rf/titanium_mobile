@@ -63,6 +63,36 @@
 	return pageControl;
 }
 
+
+- (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event 
+{
+    id value = [self.proxy valueForKey:@"hitRect"];
+    if (value != nil) 
+    {
+        CGRect hitRect = [TiUtils rectValue:value];
+        UIView * test = [super hitTest:point withEvent:event];
+        
+        if (test == nil)
+        {
+            // If it misses super's hitTest, test against the specified hitRect instead
+            if (CGRectContainsPoint(hitRect, point)) 
+            {
+                return scrollview;
+            }
+        } 
+        else 
+        {
+            // otherwise just return whatever super got
+            return test;
+        }
+    }
+    else if ([self pointInside:point withEvent:event]) 
+    {
+        return [super hitTest:point withEvent:event];
+    }
+    return nil;
+}
+
 -(UIScrollView*)scrollview 
 {
 	if (scrollview==nil)
