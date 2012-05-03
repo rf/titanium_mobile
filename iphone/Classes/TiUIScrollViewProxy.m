@@ -272,9 +272,9 @@
 -(void)scrollViewDidScroll:(UIScrollView *)scrollView
 {
 	CGPoint offset = [scrollView contentOffset];
-	if ([self _hasListeners:@"scroll"])
+	if ([self _hasListeners:@"scrollEnd"])
 	{
-		[self fireEvent:@"scroll" withObject:[NSDictionary dictionaryWithObjectsAndKeys:
+		[self fireEvent:@"scrollEnd" withObject:[NSDictionary dictionaryWithObjectsAndKeys:
 				NUMFLOAT(offset.x),@"x",
 				NUMFLOAT(offset.y),@"y",
 				NUMBOOL([scrollView isDecelerating]),@"decelerating",
