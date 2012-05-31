@@ -1,5 +1,6 @@
-define(["Ti/_/css", "Ti/_/declare", "Ti/_/style", "Ti/_/dom", "Ti/_/lang", "Ti/UI", "Ti/_"], function(css, declare, style, dom, lang, UI, _) {
-	
+define(["Ti/_/css", "Ti/_/declare", "Ti/_/style", "Ti/_/lang", "Ti/API", "Ti/UI", "Ti/_"],
+	function(css, declare, style, lang, API, UI, _) {
+
 	var isDef = lang.isDef,
 		val = lang.val;
 
@@ -17,8 +18,8 @@ define(["Ti/_/css", "Ti/_/declare", "Ti/_/style", "Ti/_/dom", "Ti/_/lang", "Ti/U
 		},
 		
 		handleInvalidState: function(child, parent) {
-			console.debug("WARNING: Attempting to layout element that has been destroyed.\n\t Removing the element from the parent.\n\t The parent has a widget ID of " + parent.widgetId + ".");
-			var children = parent.children;
+			API.debug("WARNING: Attempting to layout element that has been destroyed.\n\t Removing the element from the parent.\n\t The parent has a widget ID of " + parent.widgetId + ".");
+			var children = parent._children;
 			children.splice(children.indexOf(child),1);
 		},
 		
@@ -55,7 +56,7 @@ define(["Ti/_/css", "Ti/_/declare", "Ti/_/style", "Ti/_/dom", "Ti/_/lang", "Ti/U
 				bottom: val(animation.bottom,node.bottom),
 				center: center,
 				width: val(animation.width,node.width),
-				height: val(animation.height,node.height),
+				height: val(animation.height,node.height)
 			},animationCoefficients, this);
 			
 			results = this._doAnimationLayout(node, animationCoefficients);
