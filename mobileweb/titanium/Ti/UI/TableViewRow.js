@@ -3,7 +3,7 @@ define(["Ti/_/declare", "Ti/_/lang", "Ti/UI/View", "Ti/_/dom", "Ti/_/css", "Ti/_
 
 	var setStyle = style.set,
 		isDef = lang.isDef,
-		imagePrefix = "themes/" + require.config.ti.theme + "/UI/TableViewRow/"
+		imagePrefix = "themes/" + require.config.ti.theme + "/UI/TableViewRow/",
 		checkImage = imagePrefix + "check.png",
 		childImage = imagePrefix + "child.png",
 		detailImage = imagePrefix + "detail.png";
@@ -37,6 +37,9 @@ define(["Ti/_/declare", "Ti/_/lang", "Ti/UI/View", "Ti/_/dom", "Ti/_/css", "Ti/_
 				width: UI.SIZE,
 				height: UI.SIZE
 			}));
+
+			// Force single tap to be processed.
+			this.addEventListener("singletap");
 		},
 
 		_defaultWidth: UI.INHERIT,

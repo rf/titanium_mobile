@@ -1135,6 +1135,7 @@
     
     if ([searchController isActive]) {
         [searchController setActive:NO animated:YES];
+        searchActivated = NO;
         return;
     }
 
@@ -1455,6 +1456,11 @@
 	}
 }
 
+-(void)setScrollIndicatorStyle_:(id)value
+{
+	[[self tableView] setIndicatorStyle:[TiUtils intValue:value def:UIScrollViewIndicatorStyleDefault]];
+}
+
 -(void)setShowVerticalScrollIndicator_:(id)value
 {
 	[[self tableView] setShowsVerticalScrollIndicator:[TiUtils boolValue:value]];
@@ -1599,16 +1605,19 @@
 	}
 	else 
 	{
+        if (self.tableView.frame.size.width==0)
+        {
+            [self performSelector:@selector(setHeaderPullView_:) withObject:value afterDelay:0.1];
+            return;
+        }
 		tableHeaderPullView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f - self.tableView.bounds.size.height, self.tableView.bounds.size.width, self.tableView.bounds.size.height)];
 		tableHeaderPullView.backgroundColor = [UIColor lightGrayColor];
 		UIView *view = [value view];
 		[[self tableView] addSubview:tableHeaderPullView];
 		[tableHeaderPullView addSubview:view];
 		[TiUtils setView:view positionRect:[tableHeaderPullView bounds]];
-		CGRect bounds = view.bounds;
-		bounds.origin.x = 0;
-		bounds.origin.y = self.tableView.bounds.size.height - view.bounds.size.height;
-		view.bounds = bounds;
+		[value windowWillOpen];
+		[value layoutChildren:NO];
 	}
 }
 
@@ -2171,23 +2180,29 @@ return result;	\
 	return YES;
 }
 
+- (void)fireScrollEvent:(UIScrollView *)scrollView {
+	if ([self.proxy _hasListeners:@"scroll"])
+	{
+		NSMutableDictionary *event = [NSMutableDictionary dictionary];
+		[event setObject:[TiUtils pointToDictionary:scrollView.contentOffset] forKey:@"contentOffset"];
+		[event setObject:[TiUtils sizeToDictionary:scrollView.contentSize] forKey:@"contentSize"];
+		[event setObject:[TiUtils sizeToDictionary:tableview.bounds.size] forKey:@"size"];
+		[self.proxy fireEvent:@"scroll" withObject:event];
+	}
+}
+
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView
 {	
 	if (scrollView.isDragging || scrollView.isDecelerating) 
 	{
-		if ([self.proxy _hasListeners:@"scroll"])
-		{
-			NSMutableDictionary *event = [NSMutableDictionary dictionary];
-			[event setObject:[TiUtils pointToDictionary:scrollView.contentOffset] forKey:@"contentOffset"];
-			[event setObject:[TiUtils sizeToDictionary:scrollView.contentSize] forKey:@"contentSize"];
-			[event setObject:[TiUtils sizeToDictionary:tableview.bounds.size] forKey:@"size"];
-			[self.proxy fireEvent:@"scroll" withObject:event];
-		}
-    }
+    [self fireScrollEvent:scrollView];
+  }
 }
 
 - (void)scrollViewDidScrollToTop:(UIScrollView *)scrollView 
 {
+  [self fireScrollEvent:scrollView];
+  
 	// resume image loader when we're done scrolling
 	[[ImageLoader sharedLoader] resume];
 }
@@ -2242,7 +2257,6 @@ return result;	\
     animateHide = YES;
     [self hideSearchScreen:nil];
 }
-
 @end
 
 #endif

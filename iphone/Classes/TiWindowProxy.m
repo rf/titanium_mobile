@@ -287,7 +287,9 @@ TiOrientationFlags TiOrientationFlagsFromObject(id args)
 
 -(void)_tabFocus
 {
-	focused = YES;
+    if (![self opening]) {
+        focused = YES;
+    }
 	[self willShow];
 	if (!navWindow) {
 		[[[TiApp app] controller] windowFocused:[self controller]];
@@ -745,15 +747,21 @@ TiOrientationFlags TiOrientationFlagsFromObject(id args)
 {
 	[[self parentOrientationController]
 			childOrientationControllerChangedFlags:self];
-
+    
 	if (!focused)
 	{
-		[self fireFocus:YES];
+        //Do not fire focus until context is ready
+        if (![self opening]) {
+            [self fireFocus:YES];
+        }
 	}
 	else
 	{
 		DeveloperLog(@"[DEBUG] Focused was already set while in viewDidAppear.");
 	}
+    
+    //Propagate this state to children
+    [self parentDidAppear:[NSNumber numberWithBool:animated]];
 }
 
 -(void)viewWillDisappear:(BOOL)animated
@@ -766,17 +774,23 @@ TiOrientationFlags TiOrientationFlagsFromObject(id args)
 	{
 		DeveloperLog(@"[DEBUG] Focused was already cleared while in viewWillDisappear.");
 	}
+    //Propagate this state to children
+    [self parentWillDisappear:[NSNumber numberWithBool:animated]];
 }
 
 -(void)viewWillAppear:(BOOL)animated
 {
 	[self parentWillShow];
 	TiThreadProcessPendingMainThreadBlocks(0.1, YES, nil);
+    //Propagate this state to children
+    [self parentWillAppear:[NSNumber numberWithBool:animated]];
 }
 
 - (void)viewDidDisappear:(BOOL)animated
 {
 	[self parentWillHide];
+    //Propagate this state to children
+    [self parentDidDisappear:[NSNumber numberWithBool:animated]];
 }
 
 #pragma mark Animation Delegates

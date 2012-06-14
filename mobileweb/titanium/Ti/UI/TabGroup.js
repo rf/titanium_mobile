@@ -121,18 +121,29 @@ define(["Ti/_/declare", "Ti/_/UI/SuperView", "Ti/UI/View", "Ti/UI", "Ti/_/lang"]
 
 			previousTab && previousTab._blur();
 
-			this._focused || this._opened && this.fireEvent("focus", this._getEventData());
+			if (!this._focused && this._opened) {
+				this.fireEvent("focus", this._getEventData());
+				activeTab && activeTab._focus();
+			}
 			this._focused = 1;
-
-			this._opened && activeTab && activeTab._focus();
 		},
 
-		_handleBlurEvent: function(closing) {
+		_handleBlurEvent: function(blurTabs) {
 			// TabGroup is about to be closed or a window was opened
 
-			closing && this.tabs.forEach(function(tab) {
-				tab._blur();
-			});
+			// blurTabs: 1) blur all tabs, 2) blur active tab only
+			if (blurTabs) {
+				var i = 0,
+					len = this.tabs.length,
+					tab;
+
+				while (i < len) {
+					tab = this.tabs[i++];
+					(blurTabs !== 2 || tab === this._activeTab) && tab._blur();
+				}
+
+				this._previousTab = void 0;
+			}
 
 			this._focused && this._opened && this.fireEvent("blur", this._getEventData());
 			this._focused = 0;
@@ -169,9 +180,10 @@ define(["Ti/_/declare", "Ti/_/UI/SuperView", "Ti/UI/View", "Ti/UI", "Ti/_/lang"]
 
 		_updateTabsBackground: function() {
 			var tabs = this.tabs,
-				i = 0;
-			for (; i < tabs.length; i++) {
-				this._updateTabBackground(tabs[i]);
+				i = 0,
+				l = tabs.length;
+			while (i < l) {
+				this._updateTabBackground(tabs[i++]);
 			}
 		},
 
@@ -309,16 +321,12 @@ define(["Ti/_/declare", "Ti/_/UI/SuperView", "Ti/UI/View", "Ti/UI", "Ti/_/lang"]
 			tabsBackgroundSelectedImage: postUpdateTabsBackground,
 			
 			tabDividerColor: {
-				post: function() {
-					this._updateDividers();
-				},
+				post: "_updateDividers",
 				value: "#555"
 			},
 			
 			tabDividerWidth: {
-				post: function() {
-					this._updateDividers();
-				},
+				post: "_updateDividers",
 				value: 1
 			},
 			

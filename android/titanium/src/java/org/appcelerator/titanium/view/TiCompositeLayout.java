@@ -13,6 +13,7 @@ import java.util.TreeSet;
 
 import org.appcelerator.kroll.common.Log;
 import org.appcelerator.kroll.common.TiConfig;
+import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.TiDimension;
 import org.appcelerator.titanium.proxy.TiViewProxy;
@@ -529,6 +530,12 @@ public class TiCompositeLayout extends ViewGroup
 					int newHeightSpec = MeasureSpec.makeMeasureSpec(newHeight, MeasureSpec.EXACTLY);
 					child.measure(newWidthSpec, newHeightSpec);
 				}
+
+				if (!TiApplication.getInstance().isRootActivityAvailable()) {
+					Log.w(TAG, "The root activity is no longer available.  Skipping layout pass.");
+					return;
+				}
+
 				child.layout(horizontal[0], vertical[0], horizontal[1], vertical[1]);
 
 				currentHeight += newHeight;
@@ -542,21 +549,6 @@ public class TiCompositeLayout extends ViewGroup
 
 		if (viewProxy != null && viewProxy.hasListeners(TiC.EVENT_POST_LAYOUT)) {
 			viewProxy.fireEvent(TiC.EVENT_POST_LAYOUT, null);
-		}
-	}
-
-	@Override
-	protected void onAnimationEnd()
-	{
-		super.onAnimationEnd();
-		if (Build.VERSION.SDK_INT < TiC.API_LEVEL_HONEYCOMB) {
-			// There is an android bug where animations still occur after this method. We clear it from the view to
-			// correct this. This fixes TIMOB-8324
-			// (http://stackoverflow.com/questions/4750939/android-animation-is-not-finished-in-onanimationend)
-			clearAnimation();
-			// We have to force an invalidate here for TIMOB-7412 (only for 3.0 and below). This is to prevent a
-			// background color of a view from being transparent after an animation.
-			invalidate();
 		}
 	}
 
