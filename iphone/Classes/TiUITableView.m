@@ -20,6 +20,11 @@
 
 #define DEFAULT_SECTION_HEADERFOOTER_HEIGHT 20.0
 
+@interface TiUIView(eventHandler);
+-(void)handleListenerRemovedWithEvent:(NSString *)event;
+-(void)handleListenerAddedWithEvent:(NSString *)event;
+@end
+
 @interface TiUITableView ()
 @property (nonatomic,copy,readwrite) NSString * searchString;
 - (void)updateSearchResultIndexes;
@@ -88,6 +93,9 @@
 
 -(void)prepareForReuse
 {
+	if (proxy.callbackCell == self) {
+		[proxy prepareTableRowForReuse];
+	}
 	[self setProxy:nil];
 	[super prepareForReuse];
 	
@@ -363,6 +371,8 @@
 		tableview.delegate = self;
 		tableview.dataSource = self;
 		tableview.autoresizingMask = UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+		
+		
 		if (TiDimensionIsDip(rowHeight))
 		{
 			[tableview setRowHeight:rowHeight.value];
@@ -939,6 +949,55 @@
 	// Turn it into a no-op while we're editing
 	if (!editing && !moving) {
 		[super touchesBegan:touches withEvent:event];
+	}
+}
+
+-(void)handleListenerRemovedWithEvent:(NSString *)event
+{
+	if([event isEqualToString:@"longpress"])
+	{
+		for (UIGestureRecognizer *gesture in [tableview gestureRecognizers])
+		{
+			if([[gesture class] isEqual:[UILongPressGestureRecognizer class]])
+			{
+				[tableview removeGestureRecognizer:gesture];
+				return;
+			}
+		}
+	}
+	[super handleListenerRemovedWithEvent:event];
+}
+
+-(void)handleListenerAddedWithEvent:(NSString *)event
+{
+	ENSURE_UI_THREAD_1_ARG(event);
+    if ([event isEqualToString:@"longpress"]) {
+		UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPressGesture:)];
+		[[self tableView] addGestureRecognizer:longPress];
+		[longPress release];
+		return;
+    }
+	[super handleListenerAddedWithEvent:event];
+}
+
+-(void)longPressGesture:(UILongPressGestureRecognizer *)recognizer
+{
+	if([[self proxy] _hasListeners:@"longpress"] && [recognizer state] == UIGestureRecognizerStateBegan)
+	{
+		UITableView *ourTableView = [self tableView];
+		CGPoint point = [recognizer locationInView:ourTableView];
+		NSIndexPath *indexPath = [ourTableView indexPathForRowAtPoint:point];
+		
+		BOOL search = NO;
+		if (allowsSelectionSet==NO || [ourTableView allowsSelection]==NO)
+		{
+			[ourTableView deselectRowAtIndexPath:indexPath animated:YES];
+		}
+		if(ourTableView != tableview)
+		{
+			search = YES;
+		}
+		[self triggerActionForIndexPath:indexPath fromPath:nil tableView:ourTableView wasAccessory:NO search:search name:@"longpress"];
 	}
 }
 
@@ -1692,6 +1751,7 @@ return result;	\
 	// the classname for all rows that have the same substainal layout will be the same
 	// we reuse them for speed
 	UITableViewCell *cell = [ourTableView dequeueReusableCellWithIdentifier:row.tableClass];
+	[row prepareTableRowForReuse];
 	if (cell == nil)
 	{
 		cell = [[[TiUITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:row.tableClass row:row] autorelease];
@@ -1701,11 +1761,6 @@ return result;	\
 	}
 	else
 	{
-		// TODO: Right now, reproxying, redrawing, reloading, etc. is SLOWER than simply drawing in the new cell contents!
-		// So what we're going to do with this cell is clear its contents out, then redraw it as if it were a new cell.
-		// Keeps the cell pool small and reusable.
-		[TiUITableViewRowProxy clearTableRowCell:cell];
-        
         // Have to reset the proxy on the cell, and the row's callback cell, as it may have been cleared in reuse operations (or reassigned)
         [(TiUITableViewCell*)cell setProxy:row];
         [row setCallbackCell:(TiUITableViewCell*)cell];

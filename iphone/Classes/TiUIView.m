@@ -493,6 +493,7 @@ DEFINE_EXCEPTIONS
     else {
         [self backgroundImageLayer].contents = (id)bgImage.CGImage;
         if (bgImage != nil) {
+            [self backgroundImageLayer].contentsScale = [bgImage scale];
             [self backgroundImageLayer].contentsCenter = TiDimensionLayerContentCenter(topCap, leftCap, topCap, leftCap, [bgImage size]);
         }
     }
@@ -1218,6 +1219,8 @@ DEFINE_EXCEPTIONS
 
 	[self updateTouchHandling];
     if ([event isEqualToString:@"swipe"]) {
+        [[self gestureRecognizerForEvent:@"uswipe"] setEnabled:NO];
+        [[self gestureRecognizerForEvent:@"dswipe"] setEnabled:NO];
         [[self gestureRecognizerForEvent:@"rswipe"] setEnabled:NO];
         [[self gestureRecognizerForEvent:@"lswipe"] setEnabled:NO];
     }
