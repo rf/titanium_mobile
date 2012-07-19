@@ -19,6 +19,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.graphics.*;
 
 public class TiTableViewHeaderItem extends TiBaseTableViewItem
 {
@@ -50,9 +51,10 @@ public class TiTableViewHeaderItem extends TiBaseTableViewItem
 			setPadding(0, 0, 0, 0);
 			setMinimumHeight((int)TiUIHelper.getRawDIPSize(18, context));
 			setVerticalFadingEdgeEnabled(false);
-			TiUIHelper.styleText(textView, "", "10dp", "normal"); //TODO font
+			TiUIHelper.styleText(textView, "", "14dp", "normal"); //TODO font
 			textView.setBackgroundColor(Color.DKGRAY);
 			textView.setTextColor(Color.LTGRAY);
+      textView.setTypeface(Typeface.BOLD);
 			TiUIHelper.setTextViewDIPPadding(textView, 4, 2);
 		}
 
