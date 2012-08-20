@@ -19,6 +19,7 @@
 #import "TiRootController.h"
 
 #define DEFAULT_SECTION_HEADERFOOTER_HEIGHT 20.0
+#define GROUPED_MARGIN_WIDTH 18.0
 
 @interface TiUIView(eventHandler);
 -(void)handleListenerRemovedWithEvent:(NSString *)event;
@@ -334,6 +335,15 @@
 		height = MIN(maxRowHeight.value,height);
 	}
 	return height < 1 ? tableview.rowHeight : height;
+}
+
+//Allows use of scrollsToTop property on a table.
+//Useful when you have multiple tables in your view, you can
+//set which table will respond to tap on status bar to scroll to top.
+//http://developer.apple.com/library/ios/#documentation/uikit/reference/UIScrollView_Class/Reference/UIScrollView.html
+-(void)setScrollsToTop_:(id)value
+{
+	[[self tableView] setScrollsToTop:[TiUtils boolValue:value def:YES]];
 }
 
 -(void)setBackgroundColor:(TiColor*)color onTable:(UITableView*)table
@@ -982,22 +992,63 @@
 
 -(void)longPressGesture:(UILongPressGestureRecognizer *)recognizer
 {
-	if([[self proxy] _hasListeners:@"longpress"] && [recognizer state] == UIGestureRecognizerStateBegan)
-	{
-		UITableView *ourTableView = [self tableView];
-		CGPoint point = [recognizer locationInView:ourTableView];
-		NSIndexPath *indexPath = [ourTableView indexPathForRowAtPoint:point];
-		
-		BOOL search = NO;
-		if (allowsSelectionSet==NO || [ourTableView allowsSelection]==NO)
-		{
-			[ourTableView deselectRowAtIndexPath:indexPath animated:YES];
-		}
-		if(ourTableView != tableview)
-		{
-			search = YES;
-		}
-		[self triggerActionForIndexPath:indexPath fromPath:nil tableView:ourTableView wasAccessory:NO search:search name:@"longpress"];
+    if([[self proxy] _hasListeners:@"longpress"] && [recognizer state] == UIGestureRecognizerStateBegan)
+    {
+        UITableView *ourTableView = [self tableView];
+        CGPoint point = [recognizer locationInView:ourTableView];
+        NSIndexPath *indexPath = [ourTableView indexPathForRowAtPoint:point];
+
+        BOOL search = (ourTableView != tableview);
+        
+        if (indexPath == nil) {
+            //indexPath will also be nil if you click the header of the first section. TableView Bug??
+            TiUITableViewSectionProxy *section = [self sectionForIndex:0];
+            if (section != nil) {
+                CGRect headerRect = [ourTableView rectForHeaderInSection:0];
+                if ( CGRectContainsPoint(headerRect,point) ) {
+                    NSDictionary * eventObject = [NSDictionary dictionaryWithObjectsAndKeys:
+                                                  section,@"section",
+                                                  NUMBOOL(NO),@"detail",
+                                                  NUMBOOL(search),@"searchMode",
+                                                  NUMFLOAT(point.x), @"x",
+                                                  NUMFLOAT(point.y), @"y",
+                                                  nil];
+                    [[self proxy] fireEvent:@"longpress" withObject:eventObject]; 
+                    return;
+                }
+            }
+            NSDictionary *event = [NSDictionary dictionaryWithObjectsAndKeys:
+                                   NUMBOOL(NO),@"detail",
+                                   NUMBOOL(search),@"searchMode",
+                                   NUMFLOAT(point.x), @"x",
+                                   NUMFLOAT(point.y), @"y",
+                                   nil];
+            [[self proxy] fireEvent:@"longpress" withObject:event]; 
+            return;
+        }
+        
+        if (!search) {
+            //Make sure that the point does not fall into the rect for header or footer views
+            CGRect headerRect = [ourTableView rectForHeaderInSection:[indexPath section]];
+            CGRect footerRect = [ourTableView rectForFooterInSection:[indexPath section]];
+            if ( CGRectContainsPoint(headerRect,point) || CGRectContainsPoint(footerRect,point) ) {
+                TiUITableViewSectionProxy *section = [self sectionForIndex:[indexPath section]];
+                NSDictionary * eventObject = [NSDictionary dictionaryWithObjectsAndKeys:
+                                              section,@"section",
+                                              NUMBOOL(NO),@"detail",
+                                              NUMBOOL(search),@"searchMode",
+                                              NUMFLOAT(point.x), @"x",
+                                              NUMFLOAT(point.y), @"y",
+                                              nil];
+                [[self proxy] fireEvent:@"longpress" withObject:eventObject]; 
+                return;
+            }
+        }
+        if (allowsSelectionSet==NO || [ourTableView allowsSelection]==NO)
+        {
+            [ourTableView deselectRowAtIndexPath:indexPath animated:YES];
+        }
+        [self triggerActionForIndexPath:indexPath fromPath:nil tableView:ourTableView wasAccessory:NO search:search name:@"longpress"];
 	}
 }
 
@@ -2073,6 +2124,9 @@ return result;	\
 -(CGFloat)computeRowWidth
 {
     CGFloat rowWidth = tableview.bounds.size.width;
+	if (self.tableView.style == UITableViewStyleGrouped) {
+		rowWidth -= GROUPED_MARGIN_WIDTH;
+	}
     
     // Apple does not provide a good way to get information about the index sidebar size
     // in the event that it exists - it silently resizes row content which is "flexible width"
@@ -2243,14 +2297,19 @@ return result;	\
 	return YES;
 }
 
+- (NSDictionary *) eventObjectForScrollView: (UIScrollView *) scrollView
+{
+	return [NSDictionary dictionaryWithObjectsAndKeys:
+			[TiUtils pointToDictionary:scrollView.contentOffset],@"contentOffset",
+			[TiUtils sizeToDictionary:scrollView.contentSize], @"contentSize",
+			[TiUtils sizeToDictionary:tableview.bounds.size], @"size",
+			nil];
+}
+
 - (void)fireScrollEvent:(UIScrollView *)scrollView {
 	if ([self.proxy _hasListeners:@"scroll"])
 	{
-		NSMutableDictionary *event = [NSMutableDictionary dictionary];
-		[event setObject:[TiUtils pointToDictionary:scrollView.contentOffset] forKey:@"contentOffset"];
-		[event setObject:[TiUtils sizeToDictionary:scrollView.contentSize] forKey:@"contentSize"];
-		[event setObject:[TiUtils sizeToDictionary:tableview.bounds.size] forKey:@"size"];
-		[self.proxy fireEvent:@"scroll" withObject:event];
+		[self.proxy fireEvent:@"scroll" withObject:[self eventObjectForScrollView:scrollView]];
 	}
 }
 
@@ -2275,8 +2334,12 @@ return result;	\
 	// suspend image loader while we're scrolling to improve performance
 	[[ImageLoader sharedLoader] suspend];
     if([self.proxy _hasListeners:@"dragStart"])
-    {
+    {	//TODO: Deprecate old event.
         [self.proxy fireEvent:@"dragStart" withObject:nil];
+    }
+    if([self.proxy _hasListeners:@"dragstart"])
+	{
+        [self.proxy fireEvent:@"dragstart" withObject:nil];
     }
 }
 
@@ -2288,8 +2351,12 @@ return result;	\
 		[[ImageLoader sharedLoader] resume];
 	}
 	if ([self.proxy _hasListeners:@"dragEnd"])
-	{
+	{	//TODO: Deprecate old event
 		[self.proxy fireEvent:@"dragEnd" withObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:decelerate],@"decelerate",nil]]	;
+	}
+	if ([self.proxy _hasListeners:@"dragend"])
+	{
+		[self.proxy fireEvent:@"dragend" withObject:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithBool:decelerate],@"decelerate",nil]]	;
 	}
     
     // Update keyboard status to insure that any fields actively being edited remain in view
@@ -2298,17 +2365,18 @@ return result;	\
     }
 }
 
+
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView 
 {
 	// resume image loader when we're done scrolling
 	[[ImageLoader sharedLoader] resume];
-    if ([self.proxy _hasListeners:@"scrollEnd"])
+	if ([self.proxy _hasListeners:@"scrollEnd"])
+	{	//TODO: Deprecate old event.
+		[self.proxy fireEvent:@"scrollEnd" withObject:[self eventObjectForScrollView:scrollView]];
+	}
+	if ([self.proxy _hasListeners:@"scrollend"])
 	{
-		NSMutableDictionary *event = [NSMutableDictionary dictionary];
-		[event setObject:[TiUtils pointToDictionary:scrollView.contentOffset] forKey:@"contentOffset"];
-		[event setObject:[TiUtils sizeToDictionary:scrollView.contentSize] forKey:@"contentSize"];
-		[event setObject:[TiUtils sizeToDictionary:tableview.bounds.size] forKey:@"size"];
-		[self.proxy fireEvent:@"scrollEnd" withObject:event];
+		[self.proxy fireEvent:@"scrollend" withObject:[self eventObjectForScrollView:scrollView]];
 	}
 }
 
